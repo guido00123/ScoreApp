@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏹 Recurve Score</title>
+    <style>
+        :root {
+            --navy: #1f4e79;
+            --pale: #ddebf7;
+            --bg: #f8fafc;
+            --text: #334155;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 14px 14px 24px 14px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: var(--navy);
+            text-align: center;
+            font-size: 26px;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            text-align: center;
+            font-size: 14px;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: var(--navy);
+            font-size: 18px;
+            margin-top: 20px;
+            margin-bottom: 8px;
+        }
+        input[type="text"], input[type="date"], select {
+            width: 100%;
+            height: 46px;
+            box-sizing: border-box;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 16px;
+            background-color: white;
+            margin-bottom: 10px;
+        }
+        .table-container {
+            overflow-x: auto;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+        }
+        th {
+            background-color: var(--pale);
+            color: var(--navy);
+            font-weight: bold;
+            font-size: 12px;
+            padding: 10px 5px;
+        }
+        td {
+            padding: 6px 4px;
+            font-size: 15px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .arrow-select {
+            width: 100%;
+            height: 36px;
+            margin: 0;
+            font-size: 14px;
+            padding: 4px;
+        }
+        .total-cell {
+            font-weight: bold;
+            color: var(--navy);
+        }
+        button {
+            width: 100%;
+            height: 46px;
+            background-color: var(--navy);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        button.clear-btn {
+            background-color: #ef4444;
+        }
+        #ranking {
+            background-color: white;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            font-size: 16px;
+            white-space: pre-line;
+            line-height: 1.5;
+        }
+        .note {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 15px;
+            line-height: 1.4;
+        }
+    </style>
+    <!-- SheetJS CDN om Excel export direct in de browser mogelijk te maken -->
+    <script src="https://jsdelivr.net"></script>
+</head>
+<body>
+
+    <h1>🏹 Recurve Score</h1>
+    <p class="subtitle">4 schutters • 4 beurten • 4 ends • 3 pijlen</p>
+
+    <h2>Datum wedstrijd</h2>
+    <input type="date" id="match-date">
+
+    <h2>Namen van de schutters</h2>
+    <div id="names-container"></div>
+
+    <h2>Scores invoeren</h2>
+    <select id="shooter-picker"></select>
+
+    <div id="score-tables-container"></div>
+
+    <button id="export-btn">Exporteer naar Excel (.xlsx)</button>
+
+    <h2>Klassement</h2>
+    <div id="ranking"></div>
+
+    <button id="clear-btn" class="clear-btn">Alle scores wissen</button>
+
+    <p class="note">Werkt offline. Scores worden automatisch in deze browser bewaard. Vul 0–10, M of X in; M telt als 0 (misser), X telt als 10 (binnen 10).</p>
+
+    <script>
+        const OPTIONS = ["–", "X", "10", "9", "8", "7", "6", "5", "4", "3", "2", "1", "0", "M"];
+        let selectedShooter = 0;
+
+        // Start de app op
+        init();
+
+        function init() {
+            setupDate();
+            setupShooters();
+            setupDropdowns();
+            renderTables();
+            updateRanking();
+
+            document.getElementById('shooter-picker').addEventListener('change', (e) => {
+                selectedShooter = parseInt(e.target.value);
+                renderTables();
+            });
+
+            document.getElementById('clear-btn').addEventListener('click', clearAllScores);
+            document.getElementById('export-btn').addEventListener('click', exportToExcel);
+        }
+
+        function setupDate() {
+            const dateInput = document.getElementById('match-date');
+            const savedDate = localStorage.getItem('wedstrijd_datum') || "";
+            dateInput.value = savedDate;
+            dateInput.addEventListener('change', (e) => {
+                localStorage.setItem('wedstrijd_datum', e.target.value);
+            });
+        }
+
+        function setupShooters() {
+            const container = document.getElementById('names-container');
+            const picker = document.getElementById('shooter-picker');
+            
+            for (let i = 0; i < 4; i++) {
+                // Input velden voor namen
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = `Naam schutter ${i + 1}`;
+                input.value = localStorage.getItem(`name${i}`) || "";
+                input.addEventListener('input', (e) => {
+                    localStorage.setItem(`name${i}`, e.target.value);
+                    updatePickerLabels();
+                    updateRanking();
+                });
+                container.appendChild(input);
+
+                // Dropdown opties
+                const option = document.createElement('option');
+                option.value = i;
+                picker.appendChild(option);
+            }
+            updatePickerLabels();
+        }
+
+        function updatePickerLabels() {
+            const picker = document.getElementById('shooter-picker');
+            for (let i = 0; i < 4; i++) {
+                const name = (localStorage.getItem(`name${i}`) || "").trim();
+                picker.options[i].text = `Schutter ${i + 1}${name ? ' – ' + name : ''}`;
+            }
+        }
+
+        function setupDropdowns() {
+            // Zorgt ervoor dat alle score data structuren geïnitialiseerd zijn indien leeg
+            for (let s = 0; s < 4; s++) {
+                for (let ix = 0; ix < 16; ix++) {
+                    for (let a = 0; a < 3; a++) {
+                        const key = `score_${s}_${ix}_${a}`;
+                        if (!localStorage.getItem(key)) {
+                            localStorage.setItem(key, "");
+                        }
+                    }
+                }
+            }
+        }
+
+        function getKey(s, ix, a) {
+            return `score_${s}_${ix}_${a}`;
+        }
+
+        function renderTables() {
+            const container = document.getElementById('score-tables-container');
+            container.innerHTML = "";
+
+            for (let turn = 0; turn < 4; turn++) {
+                const header = document.createElement('h3');
+                header.style.color = "var(--navy)";
+                header.innerText = `Beurt ${turn + 1}`;
+                container.appendChild(header);
+
+                const tableContainer = document.createElement('div');
+                tableContainer.className = 'table-container';
+
+                const table = document.createElement('table');
+                
+                // Tabelkop
+                const thead = document.createElement('tr');
+                ["End", "Pijl 1", "Pijl 2", "Pijl 3", "Totaal"].forEach(text => {
+                    const th = document.createElement('th');
+                    th.innerText = text;
+                    thead.appendChild(th);
+                });
+                table.appendChild(thead);
+
+                // Tabelrijen per End (4 per beurt)
+                for (let e = 0; e < 4; e++) {
+                    const ix = (turn * 4) + e;
+                    const tr = document.createElement('tr');
+
+                    // End nummer kolom
+                    const tdEnd = document.createElement('td');
+                    tdEnd.innerText = e + 1;
+                    tr.appendChild(tdEnd);
+
+                    // 3 Pijlen kolommen
+                    for (let a = 0; a < 3; a++) {
+                        const tdArrow = document.createElement('td');
+                        const select = document.createElement('select');
+                        select.className = 'arrow-select';
+                        
+                        OPTIONS.forEach(opt => {
+                            const option = document.createElement('option');
+                            option.value = opt === "–" ? "" : opt;
+                            option.innerText = opt;
+                            select.appendChild(option);
+                        });
+
+                        const savedVal = localStorage.getItem(getKey(selectedShooter, ix, a)) || "";
+                        select.value = savedVal;
+
+                        select.addEventListener('change', (e) => {
+                            localStorage.setItem(getKey(selectedShooter, ix, a), e.target.value);
+                            calculateRowTotal(selectedShooter, ix);
+                            updateRanking();
+                        });
+
+                        tdArrow.appendChild(select);
+                        tr.appendChild(tdArrow);
+                    }
+
+// Totaal kolom per end
+const tdTotal = document.createElement('td');
+tdTotal.id = total_${selectedShooter}_${ix};
+tdTotal.className = 'total-cell';
+tr.appendChild(tdTotal);
+table.appendChild(tr);
+}
+tableContainer.appendChild(table);
+container.appendChild(tableContainer);
+// Bereken direct de totalen voor weergave
+for (let e = 0; e < 4; e++) {
+calculateRowTotal(selectedShooter, (turn * 4) + e);
+}
+}
+}
+function parseScore(val) {
+if (!val || val === "M") return 0;
+if (val === "X") return 10;
+return parseInt(val) || 0;
+}
+function calculateRowTotal(s, ix) {
+let total = 0;
+let hasAnyValue = false;
+for (let a = 0; a < 3; a++) {
+const val = localStorage.getItem(getKey(s, ix, a)) || "";
+if (val !== "") hasAnyValue = true;
+total += parseScore(val);
+}
+const cell = document.getElementById(total_${s}_${ix});
+if (cell) {
+cell.innerText = hasAnyValue ? total : 0;
+}
+return total;
+}
+function getShooterStats(s) {
+let totalScore = 0;
+let totalX = 0;
+let total10 = 0;
+for (let ix = 0; ix < 16; ix++) {
+for (let a = 0; a < 3; a++) {
+const val = localStorage.getItem(getKey(s, ix, a)) || "";
+totalScore += parseScore(val);
+if (val === "X") {
+totalX++;
+total10++;
+} else if (val === "10") {
+total10++;
+}
+}
+}
+return { totalScore, totalX, total10 };
+}
+function updateRanking() {
+const rankingDiv = document.getElementById('ranking');
+let list = [];
+for (let i = 0; i < 4; i++) {
+const name = (localStorage.getItem(name${i}) || "").trim() || Schutter ${i + 1};
+const stats = getShooterStats(i);
+list.push({ id: i, name, ...stats });
+}
+// Sorteren op Score -> Aantal 10en -> Aantal X-en
+list.sort((a, b) => {
+if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+if (b.total10 !== a.total10) return b.total10 - a.total10;
+return b.totalX - a.totalX;
+});
+let html = "";
+list.forEach((s, idx) => {
+html += ${idx + 1}. ${s.name}: ${s.totalScore} pt. (${s.total10}x10, ${s.totalX}xX)\n;
+});
+rankingDiv.innerText = html;
+}
+function clearAllScores() {
+if (confirm("Alle scores wissen?\nAlle pijlscores worden verwijderd; namen blijven behouden.")) {
+for (let s = 0; s < 4; s++) {
+for (let ix = 0; ix < 16; ix++) {
+for (let a = 0; a < 3; a++) {
+localStorage.removeItem(getKey(s, ix, a));
+}
+}
+}
+setupDropdowns();
+renderTables();
+updateRanking();
+}
+}
+function exportToExcel() {
+const matchDate = localStorage.getItem('wedstrijd_datum') || 'Onbekende datum';
+const wb = XLSX.utils.book_new();
+// Genereer data matrix voor Excel sheet
+const data = [
+["Recurve Score Match", "", "", "", "", ""],
+["Datum:", matchDate, "", "", "", ""],
+[],
+["Schutter", "Beurt", "End", "Pijl 1", "Pijl 2", "Pijl 3", "End Totaal"]
+];
+for (let s = 0; s < 4; s++) {
+const name = (localStorage.getItem(name${s}) || "").trim() || Schutter ${s + 1};
+for (let turn = 0; turn < 4; turn++) {
+for (let e = 0; e < 4; e++) {
+const ix = (turn * 4) + e;
+const p1 = localStorage.getItem(getKey(s, ix, 0)) || "-";
+const p2 = localStorage.getItem(getKey(s, ix, 1)) || "-";
+const p3 = localStorage.getItem(getKey(s, ix, 2)) || "-";
+const endTotal = parseScore(p1) + parseScore(p2) + parseScore(p3);
+data.push([
+name,
+Beurt ${turn + 1},
+End ${e + 1},
+p1 || "-",
+p2 || "-",
+p3 || "-",
+endTotal
+]);
+}
+}
+}
+// Voeg ook het klassement toe aan het Excel bestand
+data.push([], ["Eindklassement"], ["Positie", "Naam", "Totaal Score", "10s", "Xs"]);
+let rankingList = [];
+for (let i = 0; i < 4; i++) {
+const name = (localStorage.getItem(name${i}) || "").trim() || Schutter ${i + 1};
+rankingList.push({ name, ...getShooterStats(i) });
+}
+rankingList.sort((a, b) => b.totalScore - a.totalScore || b.total10 - a.total10 || b.totalX - a.totalX);
+rankingList.forEach((s, idx) => {
+data.push([idx + 1, s.name, s.totalScore, s.total10, s.totalX]);
+});
+const ws = XLSX.utils.aoa_to_sheet(data);
+XLSX.utils.book_append_sheet(wb, ws, "Match Scores");
+XLSX.writeFile(wb, RecurveScore_${matchDate}.xlsx);
+}
