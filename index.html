@@ -291,7 +291,7 @@
 
 // Totaal kolom per end
 const tdTotal = document.createElement('td');
-tdTotal.id = total_${selectedShooter}_${ix};
+tdTotal.id = 'total_${selectedShooter}_${ix}';
 tdTotal.className = 'total-cell';
 tr.appendChild(tdTotal);
 table.appendChild(tr);
@@ -317,7 +317,7 @@ const val = localStorage.getItem(getKey(s, ix, a)) || "";
 if (val !== "") hasAnyValue = true;
 total += parseScore(val);
 }
-const cell = document.getElementById(total_${s}_${ix});
+const cell = document.getElementById(`total_${s}_${ix}`);
 if (cell) {
 cell.innerText = hasAnyValue ? total : 0;
 }
@@ -345,7 +345,7 @@ function updateRanking() {
 const rankingDiv = document.getElementById('ranking');
 let list = [];
 for (let i = 0; i < 4; i++) {
-const name = (localStorage.getItem(name${i}) || "").trim() || Schutter ${i + 1};
+const name = (localStorage.getItem(`name${i}`) || "").trim() || `Schutter ${i + 1}`;
 const stats = getShooterStats(i);
 list.push({ id: i, name, ...stats });
 }
@@ -357,7 +357,7 @@ return b.totalX - a.totalX;
 });
 let html = "";
 list.forEach((s, idx) => {
-html += ${idx + 1}. ${s.name}: ${s.totalScore} pt. (${s.total10}x10, ${s.totalX}xX)\n;
+html += `${idx + 1}. ${s.name}: ${s.totalScore} pt. (${s.total10}x10, ${s.totalX}xX)\n`;
 });
 rankingDiv.innerText = html;
 }
