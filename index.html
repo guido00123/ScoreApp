@@ -324,60 +324,61 @@ cell.innerText = hasAnyValue ? total : 0;
 return total;
 }
 function getShooterStats(s) {
-let totalScore = 0;
-let totalX = 0;
-let total10 = 0;
-for (let ix = 0; ix < 16; ix++) {
-for (let a = 0; a < 3; a++) {
-const val = localStorage.getItem(getKey(s, ix, a)) || "";
-totalScore += parseScore(val);
-if (val === "X") {
-totalX++;
-total10++;
-} else if (val === "10") {
-total10++;
+    let totalScore = 0;
+    let totalX = 0;
+    let total10 = 0;
+    for (let ix = 0; ix < 16; ix++) {
+    for (let a = 0; a < 3; a++) {
+    const val = localStorage.getItem(getKey(s, ix, a)) || "";
+    totalScore += parseScore(val);
+    if (val === "X") {
+        totalX++;
+        total10++;
+        } else if (val === "10") {
+            total10++;
+            }
+        }
+    }
+    return { totalScore, totalX, total10 };
 }
-}
-}
-return { totalScore, totalX, total10 };
-}
+
 function updateRanking() {
 const rankingDiv = document.getElementById('ranking');
 let list = [];
 for (let i = 0; i < 4; i++) {
-const name = (localStorage.getItem(`name${i}`) || "").trim() || `Schutter ${i + 1}`;
-const stats = getShooterStats(i);
-list.push({ id: i, name, ...stats });
-}
+    const name = (localStorage.getItem(`name${i}`) || "").trim() || `Schutter ${i + 1}`;
+    const stats = getShooterStats(i);
+    list.push({ id: i, name, ...stats });
+    }
 // Sorteren op Score -> Aantal 10en -> Aantal X-en
 list.sort((a, b) => {
-if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-if (b.total10 !== a.total10) return b.total10 - a.total10;
-return b.totalX - a.totalX;
-});
+    if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+    if (b.total10 !== a.total10) return b.total10 - a.total10;
+    return b.totalX - a.totalX;
+    });
 let html = "";
 list.forEach((s, idx) => {
-html += `${idx + 1}. ${s.name}: ${s.totalScore} pt. (${s.total10}x10, ${s.totalX}xX)\n`;
-});
+    html += `${idx + 1}. ${s.name}: ${s.totalScore} pt. (${s.total10}x10, ${s.totalX}xX)\n`;    
+    });
 rankingDiv.innerText = html;
 }
 function clearAllScores() {
 if (confirm("Alle scores wissen?\nAlle pijlscores worden verwijderd; namen blijven behouden.")) {
-for (let s = 0; s < 4; s++) {
-for (let ix = 0; ix < 16; ix++) {
-for (let a = 0; a < 3; a++) {
-localStorage.removeItem(getKey(s, ix, a));
+    for (let s = 0; s < 4; s++) {
+        for (let ix = 0; ix < 16; ix++) {
+            for (let a = 0; a < 3; a++) {
+                localStorage.removeItem(getKey(s, ix, a));
+                }
+            }
+        }
+    setupDropdowns();
+    renderTables();
+    updateRanking();
+    }
 }
-}
-}
-setupDropdowns();
-renderTables();
-updateRanking();
-}
-}
+        
 function exportToExcel() {
     const matchDate = localStorage.getItem('wedstrijd_datum') || 'Onbekende datum';
-    
     // Controleer of XLSX geladen is
     if (typeof XLSX === 'undefined') {
         alert("Fout: Excel-bibliotheek niet geladen. Controleer je internetverbinding of script-tags.");
