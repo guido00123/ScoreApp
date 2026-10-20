@@ -376,48 +376,70 @@ updateRanking();
 }
 }
 function exportToExcel() {
-const matchDate = localStorage.getItem('wedstrijd_datum') || 'Onbekende datum';
-const wb = XLSX.utils.book_new();
-// Genereer data matrix voor Excel sheet
-const data = [
-["Recurve Score Match", "", "", "", "", ""],
-["Datum:", matchDate, "", "", "", ""],
-[],
-["Schutter", "Beurt", "End", "Pijl 1", "Pijl 2", "Pijl 3", "End Totaal"]
-];
-for (let s = 0; s < 4; s++) {
-const name = (localStorage.getItem('name${s}') || "").trim() || 'Schutter ${s + 1}';
-for (let turn = 0; turn < 4; turn++) {
-for (let e = 0; e < 4; e++) {
-const ix = (turn * 4) + e;
-const p1 = localStorage.getItem(getKey(s, ix, 0)) || "-";
-const p2 = localStorage.getItem(getKey(s, ix, 1)) || "-";
-const p3 = localStorage.getItem(getKey(s, ix, 2)) || "-";
-const endTotal = parseScore(p1) + parseScore(p2) + parseScore(p3);
-data.push([
-name,
-'Beurt ${turn + 1}',
-'End ${e + 1}',
-p1 || "-",
-p2 || "-",
-p3 || "-",
-endTotal
-]);
-}
-}
-}
-// Voeg ook het klassement toe aan het Excel bestand
-data.push([], ["Eindklassement"], ["Positie", "Naam", "Totaal Score", "10s", "Xs"]);
-let rankingList = [];
-for (let i = 0; i < 4; i++) {
-const name = (localStorage.getItem(name${i}) || "").trim() || Schutter ${i + 1};
-rankingList.push({ name, ...getShooterStats(i) });
-}
-rankingList.sort((a, b) => b.totalScore - a.totalScore || b.total10 - a.total10 || b.totalX - a.totalX);
-rankingList.forEach((s, idx) => {
-data.push([idx + 1, s.name, s.totalScore, s.total10, s.totalX]);
-});
-const ws = XLSX.utils.aoa_to_sheet(data);
-XLSX.utils.book_append_sheet(wb, ws, "Match Scores");
-XLSX.writeFile(wb, 'RecurveScore_${matchDate}.xlsx');
+    const matchDate = localStorage.getItem('wedstrijd_datum') || 'Onbekende datum';
+    
+    // Controleer of XLSX geladen is
+    if (typeof XLSX === 'undefined') {
+        alert("Fout: Excel-bibliotheek niet geladen. Controleer je internetverbinding of script-tags.");
+        return;
+    }
+
+    const wb = XLSX.utils.book_new();
+    
+    const data = [
+        ["Recurve Score Match", "", "", "", "", ""],
+        ["Datum:", matchDate, "", "", "", ""],
+        [],
+        ["Schutter", "Beurt", "End", "Pijl 1", "Pijl 2", "Pijl 3", "End Totaal"]
+    ];
+
+    for (let s = 0; s < 4; s++) {
+        // FIX: Backticks toegevoegd
+        const name = (localStorage.getItem(`name${s}`) || "").trim() || `Schutter ${s + 1}`;
+        
+        for (let turn = 0; turn < 4; turn++) {
+            for (let e = 0; e < 4; e++) {
+                const ix = (turn * 4) + e;
+                const p1 = localStorage.getItem(getKey(s, ix, 0)) || "-";
+                const p2 = localStorage.getItem(getKey(s, ix, 1)) || "-";
+                const p3 = localStorage.getItem(getKey(s, ix, 2)) || "-";
+                const endTotal = parseScore(p1) + parseScore(p2) + parseScore(p3);
+                
+                data.push([
+                    name,
+                    `Beurt ${turn + 1}`, // FIX: Backticks
+                    `End ${e + 1}`,      // FIX: Backticks
+                    p1 || "-",
+                    p2 || "-",
+                    p3 || "-",
+                    endTotal
+                ]);
+            }
+        }
+    }
+
+    data.push([], ["Eindklassement"], ["Positie", "Naam", "Totaal Score", "10s", "Xs"]);
+    
+    let rankingList = [];
+    for (let i = 0; i < 4; i++) {
+        // FIX: Backticks toegevoegd
+        const name = (localStorage.getItem(`name${i}`) || "").trim() || `Schutter ${i + 1}`;
+        rankingList.push({ name, ...getShooterStats(i) });
+    }
+
+    rankingList.sort((a, b) => {
+        if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+        if (b.total10 !== a.total10) return b.total10 - a.total10;
+        return b.totalX - a.totalX;
+    });
+
+    rankingList.forEach((s, idx) => {
+        data.push([idx + 1, s.name, s.totalScore, s.total10, s.totalX]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, "Match Scores");
+    
+    // FIX: Backticks voor bestandsnaam
+    XLSX.writeFile(wb, `RecurveScore_${matchDate}.xlsx`);
 }
